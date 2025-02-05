@@ -5,6 +5,9 @@
 /.pnp
 .pnp.js
 
+#removed .idea files
+/.idea
+
 # testing
 /coverage
 
