@@ -26,7 +26,11 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 // Konfiguration von Supabase (ersetze die Platzhalter durch Deine Daten)
 const supabaseUrl = 'https://jhotxukuzgndcmfyyzdu.supabase.co';
@@ -37,12 +41,14 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 /**
  * Dashboard – Ersteller-Bereich (User1)
  *
- * 1. User1 erstellt den Einkaufszettel und trägt Artikel inkl. Preis ein.
- * 2. User1 gibt an, welche Artikel er selbst nicht mitzahlen möchte.
- * 3. Anschließend wird ein Einladungslink generiert, den er an seine Freunde
- *    weitergibt.
- * 4. Sobald alle Freunde (participant_count - 1) geantwortet haben, kann User1
- *    per "Ergebnisse berechnen" die Aufteilung einsehen.
+ * 1. User1 erstellt den Einkaufszettel, trägt Artikel inkl. Preis ein
+ *    und kann zusätzlich per Checkbox angeben, welche Artikel er selbst
+ *    nicht mitzahlen möchte.
+ * 2. Es wird ein Einladungslink generiert, den er an seine Freunde teilt.
+ * 3. Sobald alle Freunde (participant_count - 1) geantwortet haben, kann
+ *    er per Button die Ergebnisse berechnen.
+ * 4. In der Ergebnisanzeige (Aufteilung) wird per Accordion aufklappbar
+ *    dargestellt, wer welche Artikel (also "abgehakt") hat.
  * 5. Abschließend kann der Kassenzettel geschlossen werden (Items werden gelöscht).
  */
 function Dashboard() {
@@ -53,7 +59,8 @@ function Dashboard() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Zusätzliche State für die Auswahl des Creators: Welche Artikel will er nicht zahlen?
+  // Zusätzliche State für die Auswahl des Creators:
+  // Hier wird festgehalten, welche Artikel der Creator ausschließen möchte.
   const [creatorSelected, setCreatorSelected] = useState({});
 
   // Zustände für Freundesantworten und Ergebnisrechnung
@@ -101,9 +108,9 @@ function Dashboard() {
     if (error) {
       console.error('Error adding item:', error);
     } else {
-      // Füge den Artikel der Liste hinzu...
+      // Artikel zur Liste hinzufügen
       setItems((prev) => [...prev, data[0]]);
-      // und initialisiere die Checkbox-Auswahl für den Creator (Standard: zahlt mit)
+      // Initialisiere die Checkbox-Auswahl für den Creator (Standard: zahlt mit)
       setCreatorSelected((prev) => ({ ...prev, [data[0].id]: false }));
       setNewItem({ description: '', price: '' });
     }
@@ -149,15 +156,15 @@ function Dashboard() {
       resultTotals[response.friend_name] = 0;
     });
 
-    // Für jeden Artikel ermitteln, wer zahlt.
-    // Dabei prüfe sowohl den Creator (basierend auf creatorSelected) als auch die Freundesantworten.
+    // Für jeden Artikel ermitteln, wer zahlt:
+    // Prüfe sowohl den Creator (über creatorSelected) als auch die Freundesantworten.
     items.forEach((item) => {
       let payingParticipants = [];
-      // Der Creator zahlt, wenn er nicht angegeben hat, diesen Artikel auszuschließen.
+      // Der Creator zahlt, wenn er das Item nicht ausgeschaltet hat.
       if (!creatorSelected[item.id]) {
         payingParticipants.push('Creator');
       }
-      // Für jeden Freund: Wenn er das Item nicht ausgeschlossen hat, zahlt er mit.
+      // Für jeden Freund: Falls das Item nicht in der "nicht zahlen"-Liste enthalten ist, zahlt er mit.
       responses.forEach((response) => {
         if (!response.not_pay_item_ids.includes(item.id)) {
           payingParticipants.push(response.friend_name);
@@ -314,32 +321,72 @@ function Dashboard() {
                         </Button>
                     )}
                     {results && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography variant="h6">Aufteilung:</Typography>
-                          <Table>
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Teilnehmer</TableCell>
-                                <TableCell align="right">Betrag (€)</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {Object.entries(results).map(([participant, amount]) => (
-                                  <TableRow key={participant}>
-                                    <TableCell>{participant}</TableCell>
-                                    <TableCell align="right">{amount.toFixed(2)}</TableCell>
-                                  </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </Box>
-                    )}
-                    {results && (
-                        <Box sx={{ mt: 2 }}>
-                          <Button variant="contained" color="error" onClick={closeReceipt}>
-                            Kassenzettel schließen
-                          </Button>
-                        </Box>
+                        <>
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="h6">Aufteilung:</Typography>
+                            <Table>
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Teilnehmer</TableCell>
+                                  <TableCell align="right">Betrag (€)</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {Object.entries(results).map(([participant, amount]) => (
+                                    <TableRow key={participant}>
+                                      <TableCell>{participant}</TableCell>
+                                      <TableCell align="right">{amount.toFixed(2)}</TableCell>
+                                    </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </Box>
+                          {/* Neuer Abschnitt: Aufklappbare Details zu den Antworten */}
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="h6">Details der Antworten:</Typography>
+                            {[
+                              {
+                                name: 'Creator',
+                                excludedItems: items.filter((item) => creatorSelected[item.id]),
+                              },
+                              ...responses.map((response) => ({
+                                name: response.friend_name,
+                                excludedItems: items.filter((item) =>
+                                    response.not_pay_item_ids.includes(item.id)
+                                ),
+                              })),
+                            ].map((participant, index) => (
+                                <Accordion key={index}>
+                                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                    <Typography>
+                                      {participant.name} (Betrag: {results[participant.name]?.toFixed(2)} €)
+                                    </Typography>
+                                  </AccordionSummary>
+                                  <AccordionDetails>
+                                    {participant.excludedItems.length > 0 ? (
+                                        <List>
+                                          {participant.excludedItems.map((item) => (
+                                              <ListItem key={item.id}>
+                                                <ListItemText
+                                                    primary={item.description}
+                                                    secondary={`${item.price.toFixed(2)} €`}
+                                                />
+                                              </ListItem>
+                                          ))}
+                                        </List>
+                                    ) : (
+                                        <Typography variant="body2">Keine Artikel ausgeschlossen.</Typography>
+                                    )}
+                                  </AccordionDetails>
+                                </Accordion>
+                            ))}
+                          </Box>
+                          <Box sx={{ mt: 2 }}>
+                            <Button variant="contained" color="error" onClick={closeReceipt}>
+                              Kassenzettel schließen
+                            </Button>
+                          </Box>
+                        </>
                     )}
                   </>
               )}

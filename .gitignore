@@ -8,6 +8,9 @@
 #removed .idea files
 /.idea
 
+
+.env
+
 # testing
 /coverage
 
