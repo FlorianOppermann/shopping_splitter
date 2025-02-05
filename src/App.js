@@ -32,10 +32,9 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-// Konfiguration von Supabase (ersetze die Platzhalter durch Deine Daten)
-const supabaseUrl = 'https://jhotxukuzgndcmfyyzdu.supabase.co';
-const supabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impob3R4dWt1emduZGNtZnl5emR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg3NTYzMTksImV4cCI6MjA1NDMzMjMxOX0.TkbbsaHY3DBmoGINcwugI83xeEF88xpGr1_Sa0pwPTQ';
+// Lese die Supabase‑URL und den Anon‑Key aus der .env-Datei
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
